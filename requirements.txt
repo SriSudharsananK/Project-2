@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-playwright
+playwright-core
 requests
 python-dotenv
 beautifulsoup4
