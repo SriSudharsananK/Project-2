@@ -6,8 +6,7 @@ import logging
 import re
 from typing import Optional, Union, Dict, Any
 
-import pandas as pd
-import pdfplumber
+import fitz  # PyMuPDF
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -106,35 +105,48 @@ async def solve_quiz(quiz_request: QuizRequest):
                     pdf_response = requests.get(download_link)
                     pdf_response.raise_for_status()
                     
-                    with open("data.pdf", "wb") as f:
-                        f.write(pdf_response.content)
-                    logging.info("Successfully downloaded the PDF file.")
+                    # Use a temporary in-memory file for the PDF
+                    pdf_document = fitz.open(stream=pdf_response.content, filetype="pdf")
+                    logging.info("Successfully downloaded and opened the PDF file.")
 
-                    with pdfplumber.open("data.pdf") as pdf:
-                        if len(pdf.pages) < 2:
-                            logging.error("PDF has fewer than 2 pages, cannot find table on page 2.")
-                            return
-                            
-                        page_two = pdf.pages[1]
-                        table = page_two.extract_table()
+                    if len(pdf_document) < 2:
+                        logging.error("PDF has fewer than 2 pages, cannot find table on page 2.")
+                        return
                         
-                        if table:
-                            df = pd.DataFrame(table[1:], columns=table[0])
-                            df['value'] = pd.to_numeric(df['value'], errors='coerce').fillna(0)
-                            answer = df['value'].sum()
-                            logging.info(f"Successfully processed PDF. Calculated sum: {answer}")
-                        else:
-                            logging.warning("Could not find a table on page 2 of the PDF.")
+                    page_two = pdf_document[1]
+                    tables = page_two.find_tables()
+                    
+                    if tables:
+                        # Assuming the first table on the page is the one we want
+                        table_data = tables[0].extract()
+                        header = table_data[0]
+                        rows = table_data[1:]
+                        
+                        try:
+                            value_index = header.index("value")
+                        except ValueError:
+                            logging.error("Could not find 'value' column in the table header.")
                             return
+
+                        total_sum = 0
+                        for row in rows:
+                            try:
+                                total_sum += float(row[value_index])
+                            except (ValueError, TypeError):
+                                # Ignore rows where the value is not a valid number
+                                continue
+                        
+                        answer = total_sum
+                        logging.info(f"Successfully processed PDF. Calculated sum: {answer}")
+                    else:
+                        logging.warning("Could not find any tables on page 2 of the PDF.")
+                        return
 
                 except RequestException as e:
                     logging.error(f"Failed to download PDF file. Error: {e}")
                     return
-                except (IOError, pdfplumber.PDFSyntaxError) as e:
+                except Exception as e: # General exception for fitz or other processing errors
                     logging.error(f"Failed to open or process PDF file. Error: {e}")
-                    return
-                except (KeyError, ValueError) as e:
-                    logging.error(f"Error processing table data from PDF. Check column names or data types. Error: {e}")
                     return
 
             else:

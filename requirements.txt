@@ -4,6 +4,5 @@ playwright
 requests
 python-dotenv
 beautifulsoup4
-pandas
-pdfplumber
+PyMuPDF
 lxml
