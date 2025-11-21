@@ -7,3 +7,6 @@ __pycache__/
 
 # Temporary data files
 data.pdf
+
+# Vercel build artifacts
+.vercel

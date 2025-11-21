@@ -17,23 +17,23 @@ This project implements a FastAPI endpoint that receives quiz challenges, solves
     ```
 
 3.  **Create `.env` file:**
-    Create a `.env` file in the root of the project and add your secret:
+    Create a `.env` file in the root of the project and add your secret for local development:
     ```
     SECRET=your_actual_secret
     ```
     Replace `your_actual_secret` with the secret you will be using.
 
-## How to Run
+## How to Run Locally
 
 1.  **Start the server:**
     Use `uvicorn` to run the FastAPI application:
     ```bash
-    uvicorn main:app --reload
+    uvicorn api.index:app --reload
     ```
     The server will be running at `http://127.0.0.1:8000`. When running, you will see timestamped log messages in this terminal.
 
 2.  **Test the endpoint:**
-    To test the endpoint, you will need to send it a POST request. The easiest way to do this from the command line is by using a `payload.json` file.
+    To test the endpoint, you will need to send it a POST request.
 
     **a. Create `payload.json`:**
     Create a file named `payload.json` with the following content:
@@ -54,17 +54,46 @@ This project implements a FastAPI endpoint that receives quiz challenges, solves
 
     After sending the request, switch back to the terminal where `uvicorn` is running to see the detailed log output of the quiz-solving process.
 
+## Deployment to Vercel
+
+This project is configured for easy deployment to Vercel.
+
+1.  **Install Vercel CLI:**
+    If you don't have it already, install the Vercel CLI globally:
+    ```bash
+    npm install -g vercel
+    ```
+
+2.  **Deploy:**
+    Run the following command from the root of the project:
+    ```bash
+    vercel
+    ```
+    The CLI will guide you through the deployment process. It will automatically detect the project structure and use the `vercel.json` configuration.
+
+3.  **Set Environment Variables:**
+    Your `SECRET` needs to be set as an environment variable in your Vercel project.
+
+    You can do this through the Vercel dashboard:
+    *   Go to your project's "Settings" tab.
+    *   Click on "Environment Variables".
+    *   Add a new variable with the key `SECRET` and your secret as the value.
+
+    Alternatively, you can set it using the Vercel CLI:
+    ```bash
+    vercel env add SECRET your_actual_secret
+    ```
+    Replace `your_actual_secret` with your secret. You only need to do this once per project.
+
 ## How it works
 
-1.  The `main.py` script starts a FastAPI server.
+1.  The `api/index.py` script starts a FastAPI server.
 2.  The `/quiz` endpoint receives a POST request with an `email`, `secret`, and a `url`.
 3.  It validates the `secret` and, if valid, starts a background task to solve the quiz. This allows the API to respond with a `200 OK` immediately.
 4.  The `solve_quiz` function in the background task does the following:
     *   Launches a headless Chromium browser using Playwright.
     *   Navigates to the provided `url`.
-    *   It scrapes the page to find the question, any data files, and the URL to submit the answer to. It's designed to handle the provided example where the question is base64 encoded in a script tag.
-    *   It then processes the data to find the answer. The current implementation is tailored to solve the example quiz (download a PDF, read a table, and sum a column).
+    *   It scrapes the page to find the question, any data files, and the URL to submit the answer to.
+    *   It then processes the data to find the answer.
     *   It submits the answer to the submission URL.
-    *   If the answer is correct and a new quiz URL is provided, it calls itself recursively to solve the next quiz.
-    *   If the answer is incorrect or the quiz is over, it stops and logs the result.
-5.  **Logging and Error Handling:** The application uses Python's `logging` module to provide detailed, timestamped output. It also includes specific `try...except` blocks to handle potential errors gracefully during various stages like web navigation, data processing, and API requests, making the system more robust and easier to debug.
+5.  **Logging and Error Handling:** The application uses Python's `logging` module to provide detailed, timestamped output. It also includes specific `try...except` blocks to handle potential errors gracefully, making the system more robust and easier to debug.
